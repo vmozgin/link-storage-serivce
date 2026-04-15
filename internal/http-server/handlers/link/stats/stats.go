@@ -1,4 +1,4 @@
-package get
+package stats
 
 import (
 	"encoding/json"
@@ -11,18 +11,21 @@ import (
 )
 
 type Response struct {
-	Url    string `json:"url"`
-	Visits int64  `json:"visits"`
+	ShortCode string `json:"short_code"`
+	Url       string `json:"url"`
+	Visits    int64  `json:"visits"`
+	CreatedAt string `json:"created_at"`
 }
 
-type UrlGetter interface {
-	GetAndIncrement(shortCode string) (link.SimpleLink, error)
+type UrlStatsGetter interface {
+	GetStats(shortCode string) (link.Stats, error)
 }
 
-func New(urlGetter UrlGetter) http.HandlerFunc {
+func New(urlStatsGetter UrlStatsGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
-		simpleUrl, err := urlGetter.GetAndIncrement(shortCode)
+		stats, err := urlStatsGetter.GetStats(shortCode)
+
 		if errors.Is(err, storage.ErrUrlNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "link not found"})
@@ -35,6 +38,6 @@ func New(urlGetter UrlGetter) http.HandlerFunc {
 			return
 		}
 
-		json.NewEncoder(w).Encode(Response{Url: simpleUrl.Url, Visits: simpleUrl.Visits})
+		json.NewEncoder(w).Encode(Response{ShortCode: stats.ShortCode, Url: stats.Url, Visits: stats.Visits, CreatedAt: stats.CreatedAt})
 	}
 }

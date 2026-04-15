@@ -2,10 +2,12 @@ package main
 
 import (
 	"link-storage-service/internal/config"
-	json_middleware "link-storage-service/internal/handler/json-middleware"
+	"link-storage-service/internal/handler/middleware/json"
+	"link-storage-service/internal/handler/middleware/logging"
 	delete2 "link-storage-service/internal/http-server/handlers/link/delete"
 	"link-storage-service/internal/http-server/handlers/link/get"
 	"link-storage-service/internal/http-server/handlers/link/save"
+	"link-storage-service/internal/http-server/handlers/link/stats"
 	"link-storage-service/internal/storage/postgres"
 	"log/slog"
 	"net/http"
@@ -24,12 +26,15 @@ func main() {
 	saveHandler := save.New(storage)
 	getHandler := get.New(storage)
 	deleteHandler := delete2.New(storage)
+	statsHandler := stats.New(storage)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /links", saveHandler)
 	mux.HandleFunc("GET /links/{short_code}", getHandler)
 	mux.HandleFunc("DELETE /links/{short_code}", deleteHandler)
-	wrapped := json_middleware.JsonMiddleware(mux)
+	mux.HandleFunc("GET /links/{short_code}/stats", statsHandler)
+	wrapped := json.JsonMiddleware(mux)
+	wrapped = logging.LoggingMiddleware(wrapped)
 
 	slog.Info("starting server", slog.String("addr", cfg.HTTPServer.Address))
 

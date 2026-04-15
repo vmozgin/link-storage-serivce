@@ -44,8 +44,6 @@ func New(urlSaver UrlSaver) http.HandlerFunc {
 			return
 		}
 
-		slog.Info("request body decoded", slog.Any("request", req))
-
 		id, err := urlSaver.SaveUrl(req.URL, shortCode)
 		if err != nil {
 			slog.Error("failed to save url", slog.String("error", err.Error()))

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"link-storage-service/internal/config"
-	"link-storage-service/internal/model/url"
+	"link-storage-service/internal/model/link"
 	"link-storage-service/internal/storage"
 
 	_ "github.com/lib/pq"
@@ -59,22 +59,22 @@ func (s *Storage) SaveUrl(urlToSave, shortCode string) (string, error) {
 	return id, nil
 }
 
-func (s *Storage) GetAndIncrement(shortCode string) (url.SimpleUrl, error) {
+func (s *Storage) GetAndIncrement(shortCode string) (link.SimpleLink, error) {
 	const op = "storage.postgres.GetUrl"
 
 	stmt, err := s.db.Prepare("UPDATE link SET visits = visits + 1 WHERE short_code = $1 RETURNING original_url, visits")
 
 	if err != nil {
-		return url.SimpleUrl{}, fmt.Errorf("%s: %w", op, err)
+		return link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	var resp url.SimpleUrl
+	var resp link.SimpleLink
 	err = stmt.QueryRow(shortCode).Scan(&resp.Url, &resp.Visits)
 	if errors.Is(err, sql.ErrNoRows) {
-		return url.SimpleUrl{}, storage.ErrUrlNotFound
+		return link.SimpleLink{}, storage.ErrUrlNotFound
 	}
 	if err != nil {
-		return url.SimpleUrl{}, fmt.Errorf("%s: %w", op, err)
+		return link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return resp, nil
@@ -93,4 +93,23 @@ func (s *Storage) DeleteUrl(shortCode string) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
+}
+
+func (s *Storage) GetStats(shortCode string) (link.Stats, error) {
+	const op = "storage.postgres.GetStats"
+
+	stmt, err := s.db.Prepare("SELECT short_code, original_url, visits, created_at FROM link WHERE short_code=$1")
+	if err != nil {
+		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var resp link.Stats
+	err = stmt.QueryRow(shortCode).Scan(&resp.ShortCode, &resp.Url, &resp.Visits, &resp.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return link.Stats{}, storage.ErrUrlNotFound
+	}
+	if err != nil {
+		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
+	}
+	return resp, nil
 }
