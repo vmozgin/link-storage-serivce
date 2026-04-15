@@ -2,7 +2,7 @@ package save
 
 import (
 	"encoding/json"
-	resp "link-storage-service/internal/model/response"
+	"link-storage-service/internal/model/response"
 	"link-storage-service/internal/util/random"
 	"log/slog"
 	"net/http"
@@ -13,7 +13,6 @@ type Request struct {
 }
 
 type Response struct {
-	resp.Response
 	ShortCode string `json:"shortCode"`
 }
 
@@ -23,22 +22,18 @@ type UrlSaver interface {
 
 func New(urlSaver UrlSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		var req Request
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			slog.Error("failed to decode request body", slog.String("error", err.Error()))
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(resp.Error("failed to decode request"))
+			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to decode request"})
 			return
 		}
 
 		if req.URL == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(resp.Error("url is required"))
+			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "url is required"})
 			return
 		}
 
@@ -54,11 +49,10 @@ func New(urlSaver UrlSaver) http.HandlerFunc {
 		id, err := urlSaver.SaveUrl(req.URL, shortCode)
 		if err != nil {
 			slog.Error("failed to save url", slog.String("error", err.Error()))
-			json.NewEncoder(w).Encode(resp.Error("failed to save url"))
+			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to save url"})
 			return
 		}
 		slog.Info("url saved", slog.String("id", id))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Response: resp.OK(), ShortCode: shortCode})
+		json.NewEncoder(w).Encode(Response{ShortCode: shortCode})
 	}
 }
