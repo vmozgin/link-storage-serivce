@@ -6,6 +6,7 @@ import (
 	"link-storage-service/internal/handler/middleware/logging"
 	delete2 "link-storage-service/internal/http-server/handlers/link/delete"
 	"link-storage-service/internal/http-server/handlers/link/get"
+	get_all "link-storage-service/internal/http-server/handlers/link/get-all"
 	"link-storage-service/internal/http-server/handlers/link/save"
 	"link-storage-service/internal/http-server/handlers/link/stats"
 	"link-storage-service/internal/storage/postgres"
@@ -27,12 +28,14 @@ func main() {
 	getHandler := get.New(storage)
 	deleteHandler := delete2.New(storage)
 	statsHandler := stats.New(storage)
+	getAllHandler := get_all.New(storage)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /links", saveHandler)
 	mux.HandleFunc("GET /links/{short_code}", getHandler)
 	mux.HandleFunc("DELETE /links/{short_code}", deleteHandler)
 	mux.HandleFunc("GET /links/{short_code}/stats", statsHandler)
+	mux.HandleFunc("GET /links", getAllHandler)
 	wrapped := json.JsonMiddleware(mux)
 	wrapped = logging.LoggingMiddleware(wrapped)
 

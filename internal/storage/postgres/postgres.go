@@ -113,3 +113,35 @@ func (s *Storage) GetStats(shortCode string) (link.Stats, error) {
 	}
 	return resp, nil
 }
+
+func (s *Storage) GetBatch(limit, offset int) ([]link.SimpleLink, error) {
+	const op = "storage.postgres.GetBatch"
+
+	stmt, err := s.db.Prepare("SELECT original_url, visits FROM link LIMIT $1 OFFSET $2")
+	if err != nil {
+		return []link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var resp []link.SimpleLink
+	rows, err := stmt.Query(limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	for rows.Next() {
+		var u link.SimpleLink
+		err := rows.Scan(&u.Url, &u.Visits)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		resp = append(resp, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	if len(resp) == 0 {
+		return []link.SimpleLink{}, nil
+	}
+
+	return resp, nil
+}
