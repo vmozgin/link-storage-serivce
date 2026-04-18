@@ -2,6 +2,8 @@ package delete
 
 import (
 	"encoding/json"
+	"link-storage-service/internal/cache"
+	"link-storage-service/internal/model/link"
 	"link-storage-service/internal/model/response"
 	"log/slog"
 	"net/http"
@@ -11,7 +13,7 @@ type UrlRemover interface {
 	DeleteUrl(shortCode string) error
 }
 
-func New(urlRemover UrlRemover) http.HandlerFunc {
+func New(urlRemover UrlRemover, cache *cache.Cache[link.SimpleLink]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
 		err := urlRemover.DeleteUrl(shortCode)
@@ -21,5 +23,6 @@ func New(urlRemover UrlRemover) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to to delete link"})
 			return
 		}
+		cache.Delete(shortCode)
 	}
 }

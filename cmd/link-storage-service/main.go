@@ -1,6 +1,7 @@
 package main
 
 import (
+	cache2 "link-storage-service/internal/cache"
 	"link-storage-service/internal/config"
 	"link-storage-service/internal/handler/middleware/json"
 	"link-storage-service/internal/handler/middleware/logging"
@@ -9,6 +10,7 @@ import (
 	get_all "link-storage-service/internal/http-server/handlers/link/get-all"
 	"link-storage-service/internal/http-server/handlers/link/save"
 	"link-storage-service/internal/http-server/handlers/link/stats"
+	"link-storage-service/internal/model/link"
 	"link-storage-service/internal/storage/postgres"
 	"log/slog"
 	"net/http"
@@ -23,10 +25,11 @@ func main() {
 		slog.Error("failed to init storage", "err", err)
 		os.Exit(1)
 	}
+	linkCache := cache2.NewCache[link.SimpleLink]()
 
 	saveHandler := save.New(storage)
-	getHandler := get.New(storage)
-	deleteHandler := delete2.New(storage)
+	getHandler := get.New(storage, linkCache)
+	deleteHandler := delete2.New(storage, linkCache)
 	statsHandler := stats.New(storage)
 	getAllHandler := get_all.New(storage)
 

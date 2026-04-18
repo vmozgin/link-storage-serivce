@@ -3,6 +3,7 @@ package get
 import (
 	"encoding/json"
 	"errors"
+	"link-storage-service/internal/cache"
 	"link-storage-service/internal/model/link"
 	"link-storage-service/internal/model/response"
 	"link-storage-service/internal/storage"
@@ -19,9 +20,15 @@ type UrlGetter interface {
 	GetAndIncrement(shortCode string) (link.SimpleLink, error)
 }
 
-func New(urlGetter UrlGetter) http.HandlerFunc {
+func New(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
+		cashedLink, ok := cash.Get(shortCode)
+		if ok {
+			json.NewEncoder(w).Encode(Response{Url: cashedLink.Url, Visits: cashedLink.Visits})
+			return
+		}
+		slog.Info("Link will be received form db")
 		simpleUrl, err := urlGetter.GetAndIncrement(shortCode)
 		if errors.Is(err, storage.ErrUrlNotFound) {
 			w.WriteHeader(http.StatusNotFound)
@@ -34,7 +41,7 @@ func New(urlGetter UrlGetter) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to to get link"})
 			return
 		}
-
+		cash.Set(shortCode, simpleUrl)
 		json.NewEncoder(w).Encode(Response{Url: simpleUrl.Url, Visits: simpleUrl.Visits})
 	}
 }
