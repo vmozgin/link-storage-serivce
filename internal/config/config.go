@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 )
 
 type Config struct {
@@ -22,14 +23,20 @@ type Storage struct {
 }
 
 type HTTPServer struct {
-	Address string
+	Address      string
+	ReadTimeout  time.Duration
+	IdleTimeout  time.Duration
+	WriteTimeout time.Duration
 }
 
 func MustLoad() *Config {
 	cfg := &Config{
 		Env: getEnv("ENV", "local"),
 		HTTPServer: HTTPServer{
-			Address: getEnv("ADDRESS", "localhost:8080"),
+			Address:      getEnv("ADDRESS", "localhost:8080"),
+			ReadTimeout:  getEnvDuration("READ_TIMEOUT", 5*time.Second),
+			IdleTimeout:  getEnvDuration("IDLE_TIMEOUT", 5*time.Second),
+			WriteTimeout: getEnvDuration("WRITE_TIMEOUT", 5*time.Second),
 		},
 		Storage: Storage{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -72,4 +79,18 @@ func (s *Storage) DSN() string {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		s.Host, s.Port, s.User, s.Password, s.Name, s.SSLMode,
 	)
+}
+
+func getEnvDuration(key string, defaultDuration time.Duration) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultDuration
+	}
+
+	duration, err := time.ParseDuration(val)
+	if err != nil {
+		return defaultDuration
+	}
+
+	return duration
 }

@@ -19,7 +19,7 @@ func New(urlAllGetter UrlAllGetter) http.HandlerFunc {
 		offsetStr := r.URL.Query().Get("offset")
 
 		limit := 10
-		offset := 1
+		offset := 0
 		if limitStr != "" {
 			if l, err := strconv.Atoi(limitStr); err == nil {
 				limit = l

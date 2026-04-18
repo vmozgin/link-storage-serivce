@@ -17,12 +17,11 @@ type Storage struct {
 
 func New(cfg config.Storage) (*Storage, error) {
 	const op = "storage.postgres.New"
-
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	stmt, err := db.Prepare(`
+	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS link(
 		id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     	short_code VARCHAR(32) NOT NULL UNIQUE,
@@ -33,62 +32,35 @@ func New(cfg config.Storage) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	_, err = stmt.Exec()
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
 	return &Storage{db: db}, nil
 }
 
 func (s *Storage) SaveUrl(urlToSave, shortCode string) (string, error) {
 	const op = "storage.postgres.SaveUrl"
-
-	stmt, err := s.db.Prepare("INSERT INTO link(short_code, original_url) VALUES ($1, $2) RETURNING id")
-
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
 	var id string
-	err = stmt.QueryRow(shortCode, urlToSave).Scan(&id)
+	err := s.db.QueryRow("INSERT INTO link(short_code, original_url) VALUES ($1, $2) RETURNING id", shortCode, urlToSave).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
-
 	return id, nil
 }
 
 func (s *Storage) GetAndIncrement(shortCode string) (link.SimpleLink, error) {
 	const op = "storage.postgres.GetUrl"
-
-	stmt, err := s.db.Prepare("UPDATE link SET visits = visits + 1 WHERE short_code = $1 RETURNING original_url, visits")
-
-	if err != nil {
-		return link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
-	}
-
 	var resp link.SimpleLink
-	err = stmt.QueryRow(shortCode).Scan(&resp.Url, &resp.Visits)
+	err := s.db.QueryRow("UPDATE link SET visits = visits + 1 WHERE short_code = $1 RETURNING original_url, visits", shortCode).Scan(&resp.Url, &resp.Visits)
 	if errors.Is(err, sql.ErrNoRows) {
 		return link.SimpleLink{}, storage.ErrUrlNotFound
 	}
 	if err != nil {
 		return link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
 	}
-
 	return resp, nil
 }
 
 func (s *Storage) DeleteUrl(shortCode string) error {
 	const op = "storage.postgres.DeleteUrl"
-
-	stmt, err := s.db.Prepare("DELETE FROM link WHERE short_code = $1")
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	_, err = stmt.Exec(shortCode)
+	_, err := s.db.Exec("DELETE FROM link WHERE short_code = $1", shortCode)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -97,36 +69,25 @@ func (s *Storage) DeleteUrl(shortCode string) error {
 
 func (s *Storage) GetStats(shortCode string) (link.Stats, error) {
 	const op = "storage.postgres.GetStats"
-
-	stmt, err := s.db.Prepare("SELECT short_code, original_url, visits, created_at FROM link WHERE short_code=$1")
+	var resp link.Stats
+	err := s.db.QueryRow("SELECT short_code, original_url, visits, created_at FROM link WHERE short_code=$1", shortCode).Scan(&resp.ShortCode, &resp.Url, &resp.Visits, &resp.CreatedAt)
 	if err != nil {
 		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
 	}
-
-	var resp link.Stats
-	err = stmt.QueryRow(shortCode).Scan(&resp.ShortCode, &resp.Url, &resp.Visits, &resp.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return link.Stats{}, storage.ErrUrlNotFound
-	}
-	if err != nil {
-		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
 	}
 	return resp, nil
 }
 
 func (s *Storage) GetBatch(limit, offset int) ([]link.SimpleLink, error) {
 	const op = "storage.postgres.GetBatch"
-
-	stmt, err := s.db.Prepare("SELECT original_url, visits FROM link LIMIT $1 OFFSET $2")
+	rows, err := s.db.Query("SELECT original_url, visits FROM link LIMIT $1 OFFSET $2", limit, offset)
 	if err != nil {
 		return []link.SimpleLink{}, fmt.Errorf("%s: %w", op, err)
 	}
-
+	defer rows.Close()
 	var resp []link.SimpleLink
-	rows, err := stmt.Query(limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
 	for rows.Next() {
 		var u link.SimpleLink
 		err := rows.Scan(&u.Url, &u.Visits)

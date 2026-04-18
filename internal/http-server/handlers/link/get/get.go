@@ -38,7 +38,7 @@ func New(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFu
 		if err != nil {
 			slog.Error("failed to get link with", "shortCode", shortCode)
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to to get link"})
+			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to get link"})
 			return
 		}
 		cash.Set(shortCode, simpleUrl)

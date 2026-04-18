@@ -44,7 +44,14 @@ func main() {
 
 	slog.Info("starting server", slog.String("addr", cfg.HTTPServer.Address))
 
-	if err := http.ListenAndServe(cfg.HTTPServer.Address, wrapped); err != nil {
+	httpServer := http.Server{
+		Addr:         cfg.HTTPServer.Address,
+		Handler:      wrapped,
+		ReadTimeout:  cfg.HTTPServer.ReadTimeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+		WriteTimeout: cfg.HTTPServer.WriteTimeout}
+
+	if err := httpServer.ListenAndServe(); err != nil {
 		slog.Error("server failed", slog.String("error", err.Error()))
 	}
 }

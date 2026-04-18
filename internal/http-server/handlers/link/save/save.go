@@ -13,7 +13,7 @@ type Request struct {
 }
 
 type Response struct {
-	ShortCode string `json:"shortCode"`
+	ShortCode string `json:"short_code"`
 }
 
 type UrlSaver interface {
