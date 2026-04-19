@@ -1,9 +1,9 @@
-package get_all
+package link
 
 import (
 	"encoding/json"
-	"link-storage-service/internal/model/link"
-	"link-storage-service/internal/model/response"
+	"link-storage-service/internal/domain/link"
+	"link-storage-service/internal/domain/response"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,7 +13,7 @@ type UrlAllGetter interface {
 	GetBatch(limit, offset int) ([]link.SimpleLink, error)
 }
 
-func New(urlAllGetter UrlAllGetter) http.HandlerFunc {
+func GetAll(urlAllGetter UrlAllGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		limitStr := r.URL.Query().Get("limit")
 		offsetStr := r.URL.Query().Get("offset")

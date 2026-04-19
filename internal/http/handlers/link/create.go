@@ -1,8 +1,8 @@
-package save
+package link
 
 import (
 	"encoding/json"
-	"link-storage-service/internal/model/response"
+	"link-storage-service/internal/domain/response"
 	"link-storage-service/internal/util/random"
 	"log/slog"
 	"net/http"
@@ -12,7 +12,7 @@ type Request struct {
 	URL string `json:"url"`
 }
 
-type Response struct {
+type CreateResponse struct {
 	ShortCode string `json:"short_code"`
 }
 
@@ -20,7 +20,7 @@ type UrlSaver interface {
 	SaveUrl(urlToSave, shortCode string) (string, error)
 }
 
-func New(urlSaver UrlSaver) http.HandlerFunc {
+func Create(urlSaver UrlSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -51,6 +51,6 @@ func New(urlSaver UrlSaver) http.HandlerFunc {
 			return
 		}
 		slog.Info("url saved", slog.String("id", id))
-		json.NewEncoder(w).Encode(Response{ShortCode: shortCode})
+		json.NewEncoder(w).Encode(CreateResponse{ShortCode: shortCode})
 	}
 }

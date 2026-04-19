@@ -1,17 +1,17 @@
-package get
+package link
 
 import (
 	"encoding/json"
 	"errors"
 	"link-storage-service/internal/cache"
-	"link-storage-service/internal/model/link"
-	"link-storage-service/internal/model/response"
+	"link-storage-service/internal/domain/link"
+	"link-storage-service/internal/domain/response"
 	"link-storage-service/internal/storage"
 	"log/slog"
 	"net/http"
 )
 
-type Response struct {
+type GetResponse struct {
 	Url    string `json:"url"`
 	Visits int64  `json:"visits"`
 }
@@ -20,12 +20,12 @@ type UrlGetter interface {
 	GetAndIncrement(shortCode string) (link.SimpleLink, error)
 }
 
-func New(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFunc {
+func Get(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
 		cashedLink, ok := cash.Get(shortCode)
 		if ok {
-			json.NewEncoder(w).Encode(Response{Url: cashedLink.Url, Visits: cashedLink.Visits})
+			json.NewEncoder(w).Encode(GetResponse{Url: cashedLink.Url, Visits: cashedLink.Visits})
 			return
 		}
 		slog.Info("Link will be received form db")
@@ -42,6 +42,6 @@ func New(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFu
 			return
 		}
 		cash.Set(shortCode, simpleUrl)
-		json.NewEncoder(w).Encode(Response{Url: simpleUrl.Url, Visits: simpleUrl.Visits})
+		json.NewEncoder(w).Encode(GetResponse{Url: simpleUrl.Url, Visits: simpleUrl.Visits})
 	}
 }

@@ -1,16 +1,12 @@
 package main
 
 import (
-	cache2 "link-storage-service/internal/cache"
+	"link-storage-service/internal/cache"
 	"link-storage-service/internal/config"
-	"link-storage-service/internal/handler/middleware/json"
-	"link-storage-service/internal/handler/middleware/logging"
-	delete2 "link-storage-service/internal/http-server/handlers/link/delete"
-	"link-storage-service/internal/http-server/handlers/link/get"
-	get_all "link-storage-service/internal/http-server/handlers/link/get-all"
-	"link-storage-service/internal/http-server/handlers/link/save"
-	"link-storage-service/internal/http-server/handlers/link/stats"
-	"link-storage-service/internal/model/link"
+	modelLink "link-storage-service/internal/domain/link"
+	"link-storage-service/internal/http/handlers/link"
+	"link-storage-service/internal/http/middleware/json"
+	"link-storage-service/internal/http/middleware/logging"
 	"link-storage-service/internal/storage/postgres"
 	"log/slog"
 	"net/http"
@@ -25,13 +21,13 @@ func main() {
 		slog.Error("failed to init storage", "err", err)
 		os.Exit(1)
 	}
-	linkCache := cache2.NewCache[link.SimpleLink]()
+	linkCache := cache.NewCache[modelLink.SimpleLink]()
 
-	saveHandler := save.New(storage)
-	getHandler := get.New(storage, linkCache)
-	deleteHandler := delete2.New(storage, linkCache)
-	statsHandler := stats.New(storage)
-	getAllHandler := get_all.New(storage)
+	saveHandler := link.Create(storage)
+	getHandler := link.Get(storage, linkCache)
+	deleteHandler := link.Delete(storage, linkCache)
+	statsHandler := link.Stats(storage)
+	getAllHandler := link.GetAll(storage)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /links", saveHandler)

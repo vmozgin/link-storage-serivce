@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"link-storage-service/internal/config"
-	"link-storage-service/internal/model/link"
+	"link-storage-service/internal/domain/link"
 	"link-storage-service/internal/storage"
 
 	_ "github.com/lib/pq"

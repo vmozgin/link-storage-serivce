@@ -1,10 +1,10 @@
-package delete
+package link
 
 import (
 	"encoding/json"
 	"link-storage-service/internal/cache"
-	"link-storage-service/internal/model/link"
-	"link-storage-service/internal/model/response"
+	"link-storage-service/internal/domain/link"
+	"link-storage-service/internal/domain/response"
 	"log/slog"
 	"net/http"
 )
@@ -13,7 +13,7 @@ type UrlRemover interface {
 	DeleteUrl(shortCode string) error
 }
 
-func New(urlRemover UrlRemover, cache *cache.Cache[link.SimpleLink]) http.HandlerFunc {
+func Delete(urlRemover UrlRemover, cache *cache.Cache[link.SimpleLink]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
 		err := urlRemover.DeleteUrl(shortCode)

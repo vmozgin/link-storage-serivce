@@ -1,27 +1,28 @@
-package stats
+package link
 
 import (
 	"encoding/json"
 	"errors"
-	"link-storage-service/internal/model/link"
-	"link-storage-service/internal/model/response"
+	"link-storage-service/internal/domain/link"
+	"link-storage-service/internal/domain/response"
 	"link-storage-service/internal/storage"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
-type Response struct {
-	ShortCode string `json:"short_code"`
-	Url       string `json:"url"`
-	Visits    int64  `json:"visits"`
-	CreatedAt string `json:"created_at"`
+type StatsResponse struct {
+	ShortCode string    `json:"short_code"`
+	Url       string    `json:"url"`
+	Visits    int64     `json:"visits"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type UrlStatsGetter interface {
 	GetStats(shortCode string) (link.Stats, error)
 }
 
-func New(urlStatsGetter UrlStatsGetter) http.HandlerFunc {
+func Stats(urlStatsGetter UrlStatsGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
 		stats, err := urlStatsGetter.GetStats(shortCode)
@@ -38,6 +39,6 @@ func New(urlStatsGetter UrlStatsGetter) http.HandlerFunc {
 			return
 		}
 
-		json.NewEncoder(w).Encode(Response{ShortCode: stats.ShortCode, Url: stats.Url, Visits: stats.Visits, CreatedAt: stats.CreatedAt})
+		json.NewEncoder(w).Encode(StatsResponse{ShortCode: stats.ShortCode, Url: stats.Url, Visits: stats.Visits, CreatedAt: stats.CreatedAt})
 	}
 }
