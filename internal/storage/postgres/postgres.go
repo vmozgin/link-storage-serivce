@@ -58,6 +58,16 @@ func (s *Storage) GetAndIncrement(shortCode string) (link.SimpleLink, error) {
 	return resp, nil
 }
 
+func (s *Storage) IncrementVisits(shortCode string) (int64, error) {
+	const op = "storage.postgres.IncrementVisits"
+	var visits int64
+	err := s.db.QueryRow("UPDATE link SET visits = visits + 1 WHERE short_code = $1 RETURNING visits", shortCode).Scan(&visits)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return visits, nil
+}
+
 func (s *Storage) DeleteUrl(shortCode string) error {
 	const op = "storage.postgres.DeleteUrl"
 	_, err := s.db.Exec("DELETE FROM link WHERE short_code = $1", shortCode)

@@ -9,6 +9,8 @@ import (
 	"link-storage-service/internal/storage"
 	"log/slog"
 	"net/http"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type GetResponse struct {
@@ -18,18 +20,21 @@ type GetResponse struct {
 
 type UrlGetter interface {
 	GetAndIncrement(shortCode string) (link.SimpleLink, error)
+	IncrementVisits(shortCode string) (int64, error)
 }
 
-func Get(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFunc {
+func Get(urlGetter UrlGetter, cache *cache.RedisCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
-		cashedLink, ok := cash.Get(shortCode)
-		if ok {
-			json.NewEncoder(w).Encode(GetResponse{Url: cashedLink.Url, Visits: cashedLink.Visits})
+		ctx := r.Context()
+		cashedLink, err := cache.Get(ctx, shortCode)
+		if !errors.Is(err, redis.Nil) {
+			invrementedVisits, _ := urlGetter.IncrementVisits(shortCode)
+			json.NewEncoder(w).Encode(GetResponse{Url: cashedLink, Visits: invrementedVisits})
 			return
 		}
 		slog.Info("Link will be received form db")
-		simpleUrl, err := urlGetter.GetAndIncrement(shortCode)
+		simpleLink, err := urlGetter.GetAndIncrement(shortCode)
 		if errors.Is(err, storage.ErrUrlNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "link not found"})
@@ -41,7 +46,7 @@ func Get(urlGetter UrlGetter, cash *cache.Cache[link.SimpleLink]) http.HandlerFu
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to get link"})
 			return
 		}
-		cash.Set(shortCode, simpleUrl)
-		json.NewEncoder(w).Encode(GetResponse{Url: simpleUrl.Url, Visits: simpleUrl.Visits})
+		cache.Set(ctx, shortCode, simpleLink.Url)
+		json.NewEncoder(w).Encode(GetResponse{Url: simpleLink.Url, Visits: simpleLink.Visits})
 	}
 }

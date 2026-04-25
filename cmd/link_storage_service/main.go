@@ -3,7 +3,6 @@ package main
 import (
 	"link-storage-service/internal/cache"
 	"link-storage-service/internal/config"
-	modelLink "link-storage-service/internal/domain/link"
 	"link-storage-service/internal/http/handlers/link"
 	"link-storage-service/internal/http/middleware/json"
 	"link-storage-service/internal/http/middleware/logging"
@@ -21,11 +20,15 @@ func main() {
 		slog.Error("failed to init storage", "err", err)
 		os.Exit(1)
 	}
-	linkCache := cache.NewCache[modelLink.SimpleLink]()
+	redisCache, err := cache.NewRedisCache(cfg.Redis)
+	if err != nil {
+		slog.Error("server failed", slog.String("error", err.Error()))
+		panic(err)
+	}
 
 	saveHandler := link.Create(storage)
-	getHandler := link.Get(storage, linkCache)
-	deleteHandler := link.Delete(storage, linkCache)
+	getHandler := link.Get(storage, redisCache)
+	deleteHandler := link.Delete(storage, redisCache)
 	statsHandler := link.Stats(storage)
 	getAllHandler := link.GetAll(storage)
 

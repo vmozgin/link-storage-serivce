@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -11,6 +12,7 @@ type Config struct {
 	Env        string
 	Storage    Storage
 	HTTPServer HTTPServer
+	Redis      Redis
 }
 
 type Storage struct {
@@ -29,6 +31,12 @@ type HTTPServer struct {
 	WriteTimeout time.Duration
 }
 
+type Redis struct {
+	Addr     string
+	Password string
+	DB       int
+}
+
 func MustLoad() *Config {
 	cfg := &Config{
 		Env: getEnv("ENV", "local"),
@@ -45,6 +53,11 @@ func MustLoad() *Config {
 			Password: getEnv("DB_PASSWORD", "12345"),
 			Name:     getEnv("DB_NAME", "link-storage"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
+		Redis: Redis{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", "12345"),
+			DB:       getEnvInt("REDIS_DB", 0),
 		},
 	}
 	if err := cfg.validate(); err != nil {
@@ -93,4 +106,16 @@ func getEnvDuration(key string, defaultDuration time.Duration) time.Duration {
 	}
 
 	return duration
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil {
+		return defaultValue
+	}
+	return n
 }
