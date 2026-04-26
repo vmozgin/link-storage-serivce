@@ -2,26 +2,19 @@ package link
 
 import (
 	"encoding/json"
-	"link-storage-service/internal/cache"
 	"link-storage-service/internal/domain/response"
-	"log/slog"
+	"link-storage-service/internal/service"
 	"net/http"
 )
 
-type UrlRemover interface {
-	DeleteUrl(shortCode string) error
-}
-
-func Delete(urlRemover UrlRemover, cache *cache.RedisCache) http.HandlerFunc {
+func Delete(linkService *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
-		err := urlRemover.DeleteUrl(shortCode)
+		err := linkService.Delete(r.Context(), shortCode)
 		if err != nil {
-			slog.Error("failed to delete link with", "shortCode", shortCode)
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to to delete link"})
 			return
 		}
-		cache.Delete(r.Context(), shortCode)
 	}
 }

@@ -35,14 +35,14 @@ func New(cfg config.Storage) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveUrl(urlToSave, shortCode string) (string, error) {
+func (s *Storage) SaveUrl(urlToSave, shortCode string) error {
 	const op = "storage.postgres.SaveUrl"
 	var id string
 	err := s.db.QueryRow("INSERT INTO link(short_code, original_url) VALUES ($1, $2) RETURNING id", shortCode, urlToSave).Scan(&id)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
-	return id, nil
+	return nil
 }
 
 func (s *Storage) GetAndIncrement(shortCode string) (link.SimpleLink, error) {

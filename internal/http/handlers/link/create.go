@@ -3,7 +3,7 @@ package link
 import (
 	"encoding/json"
 	"link-storage-service/internal/domain/response"
-	"link-storage-service/internal/util/random"
+	"link-storage-service/internal/service"
 	"log/slog"
 	"net/http"
 )
@@ -16,11 +16,7 @@ type CreateResponse struct {
 	ShortCode string `json:"short_code"`
 }
 
-type UrlSaver interface {
-	SaveUrl(urlToSave, shortCode string) (string, error)
-}
-
-func Create(urlSaver UrlSaver) http.HandlerFunc {
+func Create(linkService *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -37,20 +33,13 @@ func Create(urlSaver UrlSaver) http.HandlerFunc {
 			return
 		}
 
-		shortCode, err := random.Generate(6)
+		shortCode, err := linkService.Create(req.URL)
 		if err != nil {
-			slog.Error("failed to generate code", slog.String("error", err.Error()))
+			slog.Error("failed to create link", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to create link"})
 			return
 		}
-
-		id, err := urlSaver.SaveUrl(req.URL, shortCode)
-		if err != nil {
-			slog.Error("failed to save url", slog.String("error", err.Error()))
-			json.NewEncoder(w).Encode(response.ErrorResponse{Error: "failed to save url"})
-			return
-		}
-		slog.Info("url saved", slog.String("id", id))
 		json.NewEncoder(w).Encode(CreateResponse{ShortCode: shortCode})
 	}
 }

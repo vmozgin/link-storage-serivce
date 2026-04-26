@@ -6,6 +6,7 @@ import (
 	"link-storage-service/internal/http/handlers/link"
 	"link-storage-service/internal/http/middleware/json"
 	"link-storage-service/internal/http/middleware/logging"
+	"link-storage-service/internal/service"
 	"link-storage-service/internal/storage/postgres"
 	"log/slog"
 	"net/http"
@@ -26,18 +27,14 @@ func main() {
 		panic(err)
 	}
 
-	saveHandler := link.Create(storage)
-	getHandler := link.Get(storage, redisCache)
-	deleteHandler := link.Delete(storage, redisCache)
-	statsHandler := link.Stats(storage)
-	getAllHandler := link.GetAll(storage)
+	linkService := service.NewLinkService(storage, redisCache)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /links", saveHandler)
-	mux.HandleFunc("GET /links/{short_code}", getHandler)
-	mux.HandleFunc("DELETE /links/{short_code}", deleteHandler)
-	mux.HandleFunc("GET /links/{short_code}/stats", statsHandler)
-	mux.HandleFunc("GET /links", getAllHandler)
+	mux.HandleFunc("POST /links", link.Create(linkService))
+	mux.HandleFunc("GET /links/{short_code}", link.Get(linkService))
+	mux.HandleFunc("DELETE /links/{short_code}", link.Delete(linkService))
+	mux.HandleFunc("GET /links/{short_code}/stats", link.Stats(linkService))
+	mux.HandleFunc("GET /links", link.GetAll(linkService))
 	wrapped := json.JsonMiddleware(mux)
 	wrapped = logging.LoggingMiddleware(wrapped)
 

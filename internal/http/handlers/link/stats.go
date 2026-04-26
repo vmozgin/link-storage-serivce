@@ -3,8 +3,8 @@ package link
 import (
 	"encoding/json"
 	"errors"
-	"link-storage-service/internal/domain/link"
 	"link-storage-service/internal/domain/response"
+	"link-storage-service/internal/service"
 	"link-storage-service/internal/storage"
 	"log/slog"
 	"net/http"
@@ -18,14 +18,10 @@ type StatsResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type UrlStatsGetter interface {
-	GetStats(shortCode string) (link.Stats, error)
-}
-
-func Stats(urlStatsGetter UrlStatsGetter) http.HandlerFunc {
+func Stats(linkService *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortCode := r.PathValue("short_code")
-		stats, err := urlStatsGetter.GetStats(shortCode)
+		stats, err := linkService.Stats(shortCode)
 
 		if errors.Is(err, storage.ErrUrlNotFound) {
 			w.WriteHeader(http.StatusNotFound)
