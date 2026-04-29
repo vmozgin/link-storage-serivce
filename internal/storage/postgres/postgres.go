@@ -81,11 +81,11 @@ func (s *Storage) GetStats(shortCode string) (link.Stats, error) {
 	const op = "storage.postgres.GetStats"
 	var resp link.Stats
 	err := s.db.QueryRow("SELECT short_code, original_url, visits, created_at FROM link WHERE short_code=$1", shortCode).Scan(&resp.ShortCode, &resp.Url, &resp.Visits, &resp.CreatedAt)
-	if err != nil {
-		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
-	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return link.Stats{}, storage.ErrUrlNotFound
+	}
+	if err != nil {
+		return link.Stats{}, fmt.Errorf("%s: %w", op, err)
 	}
 	return resp, nil
 }
@@ -115,4 +115,8 @@ func (s *Storage) GetBatch(limit, offset int) ([]link.SimpleLink, error) {
 	}
 
 	return resp, nil
+}
+
+func (s *Storage) Close() error {
+	return s.db.Close()
 }

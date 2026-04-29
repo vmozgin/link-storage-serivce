@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"link-storage-service/internal/cache"
 	"link-storage-service/internal/config"
 	"link-storage-service/internal/http/handlers/link"
@@ -11,6 +13,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -24,7 +29,7 @@ func main() {
 	redisCache, err := cache.NewRedisCache(cfg.Redis)
 	if err != nil {
 		slog.Error("server failed", slog.String("error", err.Error()))
-		panic(err)
+		os.Exit(1)
 	}
 
 	linkService := service.NewLinkService(storage, redisCache)
@@ -38,8 +43,6 @@ func main() {
 	wrapped := json.JsonMiddleware(mux)
 	wrapped = logging.LoggingMiddleware(wrapped)
 
-	slog.Info("starting server", slog.String("addr", cfg.HTTPServer.Address))
-
 	httpServer := http.Server{
 		Addr:         cfg.HTTPServer.Address,
 		Handler:      wrapped,
@@ -47,7 +50,34 @@ func main() {
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 		WriteTimeout: cfg.HTTPServer.WriteTimeout}
 
-	if err := httpServer.ListenAndServe(); err != nil {
-		slog.Error("server failed", slog.String("error", err.Error()))
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err,
+			http.ErrServerClosed) {
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+	slog.Info("server started", "addr", cfg.HTTPServer.Address)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	slog.Info("shutting down")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := httpServer.Shutdown(ctx); err != nil {
+		slog.Error("server shutdown failed", "error", err)
 	}
+
+	if err := storage.Close(); err != nil {
+		slog.Error("storage close failed", "error", err)
+	}
+	if err := redisCache.Close(); err != nil {
+		slog.Error("redis close failed", "error", err)
+	}
+
+	slog.Info("server stopped")
+
 }

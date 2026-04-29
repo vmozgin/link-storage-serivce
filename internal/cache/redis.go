@@ -39,3 +39,7 @@ func (c *RedisCache) Get(ctx context.Context, shortCode string) (string, error) 
 func (c *RedisCache) Delete(ctx context.Context, shortCode string) error {
 	return c.Client.Del(ctx, "link:"+shortCode).Err()
 }
+
+func (c *RedisCache) Close() error {
+	return c.Client.Close()
+}
